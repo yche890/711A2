@@ -14,7 +14,7 @@ using System.Threading.Tasks;
 public class MessageHandler
 {
     // Maximum delay for a message
-    const int maxSleepTime = 2000;
+    const int maxSleepTime = 20000;
 
     // The number of ports for receiving the message
     const int numPorts = 5;
