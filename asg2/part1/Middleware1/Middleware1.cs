@@ -103,57 +103,30 @@ public class Middleware1 : Form
                         break;
                     }
                 }
-                //Console.WriteLine("msg received:    {0}", data);
-                ReceivedBoxAppend(data);
-                buffer.Insert(0, data);
-                bool shouldScan = true;
-                while (shouldScan)
+
+                string keyword = "Middleware";
+                if (Int32.Parse(data.Substring(data.IndexOf(keyword) + keyword.Length, 1)) != myID)
                 {
-                    int readySender = -1;
-                    string readyMsg = null;
-                    foreach (string msgs in buffer)
+                    ReceivedBoxAppend(data);
+                    //buffer.Insert(0, data);             //should I add this message to the last of the buffer?
+                    buffer.Add(data);
+                    bool shouldScan = true;
+                    while (shouldScan)
                     {
-                        string keyword = "Middleware";
-                        int senderPositionInMsg = msgs.IndexOf(keyword) + keyword.Length;
-                        int columPosition = msgs.IndexOf(":");
-                        string senderStr = msgs.Substring(senderPositionInMsg, columPosition - senderPositionInMsg);
-                        int sender = Int32.Parse(senderStr);    //the sender id
-
-                        int AtPosition = data.IndexOf("[");
-                        string MsgStamp = msgs.Substring(AtPosition + 1, data.IndexOf("]") - AtPosition - 1);
-                        string[] tokens = MsgStamp.Split(',');
-                        if (sender == myID)
+                        int readySender = -1;
+                        string readyMsg = null;
+                        foreach (string msgs in buffer)
                         {
-                            //ReadyBoxAppend(msgs);
-                            //buffer.Remove(msgs);
-                            readyMsg = msgs;
-                            readySender = sender;
-                            break;
-                        }
-                        else
-                        {
-                            bool CausalOrdered = true;
 
-                            for (int ix = 0; ix < Vi.Length; ix++)
-                            {
-                                int Vj_value = Int32.Parse(tokens[ix]);
-                                if (ix + 1 == sender)   //index is starting from 0
-                                {
-                                    if (Vj_value != Vi[ix] + 1)
-                                    {
-                                        CausalOrdered = false;
-                                    }
+                            int senderPositionInMsg = msgs.IndexOf(keyword) + keyword.Length;
+                            int columPosition = msgs.IndexOf(":");
+                            string senderStr = msgs.Substring(senderPositionInMsg, columPosition - senderPositionInMsg);
+                            int sender = Int32.Parse(senderStr);    //the sender id
 
-                                }
-                                else if (ix + 1 != myID)
-                                {
-                                    if (Vj_value > Vi[ix])
-                                    {
-                                        CausalOrdered = false;
-                                    }
-                                }
-                            }
-                            if (CausalOrdered)
+                            int AtPosition = data.IndexOf("[");
+                            string MsgStamp = msgs.Substring(AtPosition + 1, data.IndexOf("]") - AtPosition - 1);
+                            string[] tokens = MsgStamp.Split(',');
+                            if (sender == myID)
                             {
                                 //ReadyBoxAppend(msgs);
                                 //buffer.Remove(msgs);
@@ -161,21 +134,53 @@ public class Middleware1 : Form
                                 readySender = sender;
                                 break;
                             }
+                            else
+                            {
+                                bool CausalOrdered = true;
 
+                                for (int ix = 0; ix < Vi.Length; ix++)
+                                {
+                                    int Vj_value = Int32.Parse(tokens[ix]);
+                                    if (ix + 1 == sender)   //index is starting from 0
+                                    {
+                                        if (Vj_value != Vi[ix] + 1)
+                                        {
+                                            CausalOrdered = false;
+                                        }
+
+                                    }
+                                    else if (ix + 1 != myID)
+                                    {
+                                        if (Vj_value > Vi[ix])
+                                        {
+                                            CausalOrdered = false;
+                                        }
+                                    }
+                                }
+                                if (CausalOrdered)
+                                {
+                                    //ReadyBoxAppend(msgs);
+                                    //buffer.Remove(msgs);
+                                    readyMsg = msgs;
+                                    readySender = sender;
+                                    break;
+                                }
+
+                            }
                         }
-                    }
-                    if (readyMsg != null && readySender != -1)
-                    {
-                        if (readySender != myID)
+                        if (readyMsg != null && readySender != -1)
                         {
-                            Vi[readySender - 1] += 1;
+                            if (readySender != myID)
+                            {
+                                Vi[readySender - 1] += 1;
+                            }
+                            ReadyBoxAppend(readyMsg);
+                            buffer.Remove(readyMsg);
                         }
-                        ReadyBoxAppend(readyMsg);
-                        buffer.Remove(readyMsg);
-                    }
-                    else
-                    {
-                        shouldScan = false;
+                        else
+                        {
+                            shouldScan = false;
+                        }
                     }
                 }
             }
@@ -237,6 +242,8 @@ public class Middleware1 : Form
                 byte[] msg = Encoding.ASCII.GetBytes(message);
 
                 SentBoxAppend(message);
+                ReceivedBoxAppend(message);
+                ReadyBoxAppend(message);
                 // Send the data to the network.
                 int bytesSent = sendSocket.Send(msg);
 
@@ -292,116 +299,116 @@ public class Middleware1 : Form
     /// </summary>
     private void InitializeComponent()
     {
-            this.Send = new System.Windows.Forms.Button();
-            this.SentBox = new System.Windows.Forms.ListBox();
-            this.ReceivedBox = new System.Windows.Forms.ListBox();
-            this.ReadyBox = new System.Windows.Forms.ListBox();
-            this.Sent = new System.Windows.Forms.TextBox();
-            this.Received = new System.Windows.Forms.TextBox();
-            this.Ready = new System.Windows.Forms.TextBox();
-            this.textBox1 = new System.Windows.Forms.TextBox();
-            this.label1 = new System.Windows.Forms.Label();
-            this.SuspendLayout();
-            // 
-            // Send
-            // 
-            this.Send.Location = new System.Drawing.Point(12, 11);
-            this.Send.Name = "Send";
-            this.Send.Size = new System.Drawing.Size(90, 29);
-            this.Send.TabIndex = 0;
-            this.Send.Text = "Send";
-            this.Send.UseVisualStyleBackColor = true;
-            this.Send.Click += new System.EventHandler(this.Send_Click);
-            // 
-            // SentBox
-            // 
-            this.SentBox.FormattingEnabled = true;
-            this.SentBox.ItemHeight = 20;
-            this.SentBox.Location = new System.Drawing.Point(12, 120);
-            this.SentBox.Name = "SentBox";
-            this.SentBox.Size = new System.Drawing.Size(298, 604);
-            this.SentBox.TabIndex = 1;
-            // 
-            // ReceivedBox
-            // 
-            this.ReceivedBox.FormattingEnabled = true;
-            this.ReceivedBox.ItemHeight = 20;
-            this.ReceivedBox.Location = new System.Drawing.Point(333, 120);
-            this.ReceivedBox.Name = "ReceivedBox";
-            this.ReceivedBox.Size = new System.Drawing.Size(298, 604);
-            this.ReceivedBox.TabIndex = 2;
-            // 
-            // ReadyBox
-            // 
-            this.ReadyBox.FormattingEnabled = true;
-            this.ReadyBox.ItemHeight = 20;
-            this.ReadyBox.Location = new System.Drawing.Point(652, 120);
-            this.ReadyBox.Name = "ReadyBox";
-            this.ReadyBox.Size = new System.Drawing.Size(298, 604);
-            this.ReadyBox.TabIndex = 3;
-            // 
-            // Sent
-            // 
-            this.Sent.Location = new System.Drawing.Point(12, 80);
-            this.Sent.Name = "Sent";
-            this.Sent.Size = new System.Drawing.Size(100, 26);
-            this.Sent.TabIndex = 4;
-            this.Sent.Text = "Sent";
-            // 
-            // Received
-            // 
-            this.Received.Location = new System.Drawing.Point(333, 80);
-            this.Received.Name = "Received";
-            this.Received.Size = new System.Drawing.Size(100, 26);
-            this.Received.TabIndex = 5;
-            this.Received.Text = "Received";
-            // 
-            // Ready
-            // 
-            this.Ready.Location = new System.Drawing.Point(652, 80);
-            this.Ready.Name = "Ready";
-            this.Ready.Size = new System.Drawing.Size(100, 26);
-            this.Ready.TabIndex = 6;
-            this.Ready.Text = "Ready";
-            // 
-            // textBox1
-            // 
-            this.textBox1.Location = new System.Drawing.Point(430, 9);
-            this.textBox1.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
-            this.textBox1.Name = "textBox1";
-            this.textBox1.Size = new System.Drawing.Size(298, 26);
-            this.textBox1.TabIndex = 7;
-            // 
-            // label1
-            // 
-            this.label1.AutoSize = true;
-            this.label1.Location = new System.Drawing.Point(395, 14);
-            this.label1.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
-            this.label1.Name = "label1";
-            this.label1.Size = new System.Drawing.Size(24, 20);
-            this.label1.TabIndex = 8;
-            this.label1.Text = "V:";
-            // 
-            // Middleware1
-            // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(9F, 20F);
-            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(960, 736);
-            this.Controls.Add(this.label1);
-            this.Controls.Add(this.textBox1);
-            this.Controls.Add(this.Ready);
-            this.Controls.Add(this.Received);
-            this.Controls.Add(this.Sent);
-            this.Controls.Add(this.ReadyBox);
-            this.Controls.Add(this.ReceivedBox);
-            this.Controls.Add(this.SentBox);
-            this.Controls.Add(this.Send);
-            this.Location = new System.Drawing.Point(10, 10);
-            this.Name = "Middleware1";
-            this.StartPosition = System.Windows.Forms.FormStartPosition.Manual;
-            this.Text = "Middleware 1";
-            this.ResumeLayout(false);
-            this.PerformLayout();
+        this.Send = new System.Windows.Forms.Button();
+        this.SentBox = new System.Windows.Forms.ListBox();
+        this.ReceivedBox = new System.Windows.Forms.ListBox();
+        this.ReadyBox = new System.Windows.Forms.ListBox();
+        this.Sent = new System.Windows.Forms.TextBox();
+        this.Received = new System.Windows.Forms.TextBox();
+        this.Ready = new System.Windows.Forms.TextBox();
+        this.textBox1 = new System.Windows.Forms.TextBox();
+        this.label1 = new System.Windows.Forms.Label();
+        this.SuspendLayout();
+        // 
+        // Send
+        // 
+        this.Send.Location = new System.Drawing.Point(12, 11);
+        this.Send.Name = "Send";
+        this.Send.Size = new System.Drawing.Size(90, 29);
+        this.Send.TabIndex = 0;
+        this.Send.Text = "Send";
+        this.Send.UseVisualStyleBackColor = true;
+        this.Send.Click += new System.EventHandler(this.Send_Click);
+        // 
+        // SentBox
+        // 
+        this.SentBox.FormattingEnabled = true;
+        this.SentBox.ItemHeight = 20;
+        this.SentBox.Location = new System.Drawing.Point(12, 120);
+        this.SentBox.Name = "SentBox";
+        this.SentBox.Size = new System.Drawing.Size(298, 604);
+        this.SentBox.TabIndex = 1;
+        // 
+        // ReceivedBox
+        // 
+        this.ReceivedBox.FormattingEnabled = true;
+        this.ReceivedBox.ItemHeight = 20;
+        this.ReceivedBox.Location = new System.Drawing.Point(333, 120);
+        this.ReceivedBox.Name = "ReceivedBox";
+        this.ReceivedBox.Size = new System.Drawing.Size(298, 604);
+        this.ReceivedBox.TabIndex = 2;
+        // 
+        // ReadyBox
+        // 
+        this.ReadyBox.FormattingEnabled = true;
+        this.ReadyBox.ItemHeight = 20;
+        this.ReadyBox.Location = new System.Drawing.Point(652, 120);
+        this.ReadyBox.Name = "ReadyBox";
+        this.ReadyBox.Size = new System.Drawing.Size(298, 604);
+        this.ReadyBox.TabIndex = 3;
+        // 
+        // Sent
+        // 
+        this.Sent.Location = new System.Drawing.Point(12, 80);
+        this.Sent.Name = "Sent";
+        this.Sent.Size = new System.Drawing.Size(100, 26);
+        this.Sent.TabIndex = 4;
+        this.Sent.Text = "Sent";
+        // 
+        // Received
+        // 
+        this.Received.Location = new System.Drawing.Point(333, 80);
+        this.Received.Name = "Received";
+        this.Received.Size = new System.Drawing.Size(100, 26);
+        this.Received.TabIndex = 5;
+        this.Received.Text = "Received";
+        // 
+        // Ready
+        // 
+        this.Ready.Location = new System.Drawing.Point(652, 80);
+        this.Ready.Name = "Ready";
+        this.Ready.Size = new System.Drawing.Size(100, 26);
+        this.Ready.TabIndex = 6;
+        this.Ready.Text = "Ready";
+        // 
+        // textBox1
+        // 
+        this.textBox1.Location = new System.Drawing.Point(430, 9);
+        this.textBox1.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
+        this.textBox1.Name = "textBox1";
+        this.textBox1.Size = new System.Drawing.Size(298, 26);
+        this.textBox1.TabIndex = 7;
+        // 
+        // label1
+        // 
+        this.label1.AutoSize = true;
+        this.label1.Location = new System.Drawing.Point(395, 14);
+        this.label1.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+        this.label1.Name = "label1";
+        this.label1.Size = new System.Drawing.Size(24, 20);
+        this.label1.TabIndex = 8;
+        this.label1.Text = "V:";
+        // 
+        // Middleware1
+        // 
+        this.AutoScaleDimensions = new System.Drawing.SizeF(9F, 20F);
+        this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+        this.ClientSize = new System.Drawing.Size(960, 736);
+        this.Controls.Add(this.label1);
+        this.Controls.Add(this.textBox1);
+        this.Controls.Add(this.Ready);
+        this.Controls.Add(this.Received);
+        this.Controls.Add(this.Sent);
+        this.Controls.Add(this.ReadyBox);
+        this.Controls.Add(this.ReceivedBox);
+        this.Controls.Add(this.SentBox);
+        this.Controls.Add(this.Send);
+        this.Location = new System.Drawing.Point(10, 10);
+        this.Name = "Middleware1";
+        this.StartPosition = System.Windows.Forms.FormStartPosition.Manual;
+        this.Text = "Middleware 1";
+        this.ResumeLayout(false);
+        this.PerformLayout();
 
     }
 

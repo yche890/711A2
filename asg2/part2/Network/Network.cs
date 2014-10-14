@@ -147,7 +147,7 @@ public class Network
 
         // Create a TCP/IP socket for receiving incoming multicast message.
         TcpListener listener = new TcpListener(localEndPoint);
-        listener.Start(10);
+        listener.Start(88);
 
         try
         {
