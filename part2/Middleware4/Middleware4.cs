@@ -58,6 +58,34 @@ public class Middleware4 : Form
         }
         return resultHoldingQ;
     }
+    private bool SetMessagePriorityInQueue(int sender, int senderNo, int priority)
+    {
+        bool succeed = false;
+        int index = -1;
+        int counter = -1;
+        foreach (TotalOrderMessage x in holdingQ)
+        {
+            counter++;
+            if (x.senderId == sender && x.senderMsgNo == senderNo)
+            {
+                index = counter;
+
+                break;
+            }
+        }
+        if (index != -1)
+        {
+            TotalOrderMessage tom = holdingQ[index];
+            tom.timeStamp = priority;
+            tom.deliverable = true;
+            string originalMsg = tom.message;
+            string newMsg = originalMsg.Substring(0, originalMsg.IndexOf('['));
+            newMsg += priority + "]<EOM>\n";
+            holdingQ[index] = tom;
+            succeed = true;
+        }
+        return succeed;
+    }
 
     private void Send_Click(object sender, EventArgs e)
     {
@@ -98,7 +126,7 @@ public class Middleware4 : Form
 
         // Create a TCP/IP socket for receiving message from the Network.
         TcpListener listener = new TcpListener(localEndPoint);
-        listener.Start(100);
+        listener.Start(88);
 
         try
         {
@@ -169,7 +197,7 @@ public class Middleware4 : Form
 
                         if (Int32.Parse(tokensP[2]) == myID)
                         {
-                            ReceivedBoxAppend(data);
+                            //ReceivedBoxAppend(data);
                             //int receiver = Int32.Parse(tokens[1]);
                             int thisMsgNo = Int32.Parse(tokensP[3]);
                             int thisPrio = Int32.Parse(tokensP[4]);
@@ -192,18 +220,24 @@ public class Middleware4 : Form
                         break;
                     //msessage looks like: final sender msgno priority <EOM>
                     case 'F':
-                        ReceivedBoxAppend(data);
+                        //ReceivedBoxAppend(data);
                         string[] tokensF = data.Split('.');
                         int finalSender = Int32.Parse(tokensF[1]);
                         int finalMsgNo = Int32.Parse(tokensF[2]);
                         int finalPrio = Int32.Parse(tokensF[3]);
-                        TotalOrderMessage tom = holdingQ.Find(x => (x.senderId == finalSender && x.senderMsgNo == finalMsgNo));
 
-
-                        tom.timeStamp = finalPrio;
-                        tom.deliverable = true;
+                        //TotalOrderMessage tom = holdingQ.Find(x => ());
+                        bool succeed = SetMessagePriorityInQueue(finalSender, finalMsgNo, finalPrio);
+                        if (!succeed)
+                        {
+                            Console.WriteLine("Error, cant find a final message in queue");
+                            return;
+                        }
                         holdingQ = sortHoldingQueue(holdingQ);
-                        if (holdingQ.First().senderId == finalSender && holdingQ.First().senderMsgNo == finalMsgNo)
+                        //if ((holdingQ.First().senderId != finalSender || holdingQ.First().senderMsgNo != finalMsgNo) && holdingQ.First().deliverable == true)
+                        //    Console.WriteLine("assertion failed");
+
+                        /*if (holdingQ.First().senderId == finalSender && holdingQ.First().senderMsgNo == finalMsgNo)
                         {
                             TotalOrderMessage tommy = holdingQ.First();
                             ReadyBoxAppend(tommy);
@@ -218,6 +252,14 @@ public class Middleware4 : Form
                                 holdingQ.Remove(jerry);
                                 clock = Math.Max(jerry.timeStamp, clock) + 1;
                             }
+                        }*/
+                        while (holdingQ.Count > 0 && holdingQ.First().deliverable == true)
+                        {
+                            TotalOrderMessage jerry = holdingQ.First();
+                            ReadyBoxAppend(jerry);
+                            deliveryQ.Add(jerry);
+                            holdingQ.Remove(jerry);
+                            clock = Math.Max(jerry.timeStamp, clock) + 1;
                         }
                         break;
                 }
@@ -343,7 +385,7 @@ public class Middleware4 : Form
                 string message = "Proposed." + myID + "." + target + "." + messageNo + "." + myPriority + ".<EOM>\n";
                 byte[] msg = Encoding.ASCII.GetBytes(message);
 
-                SentBoxAppend(message);
+                //SentBoxAppend(message);
                 // Send the data to the network.
                 int bytesSent = sendSocket.Send(msg);
 
@@ -406,7 +448,7 @@ public class Middleware4 : Form
                 string message = "Final." + myID + "." + messageNo + "." + myPriority + ".<EOM>\n";
                 byte[] msg = Encoding.ASCII.GetBytes(message);
 
-                SentBoxAppend(message);
+                //SentBoxAppend(message);
                 // Send the data to the network.
                 int bytesSent = sendSocket.Send(msg);
 

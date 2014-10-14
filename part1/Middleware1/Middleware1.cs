@@ -105,69 +105,79 @@ public class Middleware1 : Form
                 }
                 //Console.WriteLine("msg received:    {0}", data);
                 ReceivedBoxAppend(data);
-                buffer.Add(data);
-                string readyMsg = null;
-                int readySender = -1;
-                foreach (string msgs in buffer)
+                buffer.Insert(0, data);
+                bool shouldScan = true;
+                while (shouldScan)
                 {
-                    string keyword = "Middleware";
-                    int senderPositionInMsg = msgs.IndexOf(keyword) + keyword.Length;
-                    int columPosition = msgs.IndexOf(":");
-                    string senderStr = msgs.Substring(senderPositionInMsg, columPosition - senderPositionInMsg);
-                    int sender = Int32.Parse(senderStr);    //the sender id
-
-                    int AtPosition = data.IndexOf("[");
-                    string MsgStamp = msgs.Substring(AtPosition + 1, data.IndexOf("]") - AtPosition - 1);
-                    string[] tokens = MsgStamp.Split(',');
-                    if (sender == myID)
+                    int readySender = -1;
+                    string readyMsg = null;
+                    foreach (string msgs in buffer)
                     {
-                        //ReadyBoxAppend(msgs);
-                        //buffer.Remove(msgs);
-                        readyMsg = msgs;
-                        readySender = sender;
-                    }
-                    else
-                    {
-                        bool CausalOrdered = true;
+                        string keyword = "Middleware";
+                        int senderPositionInMsg = msgs.IndexOf(keyword) + keyword.Length;
+                        int columPosition = msgs.IndexOf(":");
+                        string senderStr = msgs.Substring(senderPositionInMsg, columPosition - senderPositionInMsg);
+                        int sender = Int32.Parse(senderStr);    //the sender id
 
-                        for (int ix = 0; ix < Vi.Length; ix++)
-                        {
-                            int Vj_value = Int32.Parse(tokens[ix]);
-                            if (ix + 1 == sender)   //index is starting from 0
-                            {
-                                if (Vj_value != Vi[ix] + 1)
-                                {
-                                    CausalOrdered = false;
-                                }
-
-                            }
-                            else if (ix + 1 != myID)
-                            {
-                                if (Vj_value > Vi[ix])
-                                {
-                                    CausalOrdered = false;
-                                }
-                            }
-                        }
-                        if (CausalOrdered)
+                        int AtPosition = data.IndexOf("[");
+                        string MsgStamp = msgs.Substring(AtPosition + 1, data.IndexOf("]") - AtPosition - 1);
+                        string[] tokens = MsgStamp.Split(',');
+                        if (sender == myID)
                         {
                             //ReadyBoxAppend(msgs);
                             //buffer.Remove(msgs);
                             readyMsg = msgs;
                             readySender = sender;
+                            break;
+                        }
+                        else
+                        {
+                            bool CausalOrdered = true;
+
+                            for (int ix = 0; ix < Vi.Length; ix++)
+                            {
+                                int Vj_value = Int32.Parse(tokens[ix]);
+                                if (ix + 1 == sender)   //index is starting from 0
+                                {
+                                    if (Vj_value != Vi[ix] + 1)
+                                    {
+                                        CausalOrdered = false;
+                                    }
+
+                                }
+                                else if (ix + 1 != myID)
+                                {
+                                    if (Vj_value > Vi[ix])
+                                    {
+                                        CausalOrdered = false;
+                                    }
+                                }
+                            }
+                            if (CausalOrdered)
+                            {
+                                //ReadyBoxAppend(msgs);
+                                //buffer.Remove(msgs);
+                                readyMsg = msgs;
+                                readySender = sender;
+                                break;
+                            }
+
                         }
                     }
-                }
-                if (readyMsg != null && readySender != -1)
-                {
-                    if (readySender != myID)
+                    if (readyMsg != null && readySender != -1)
                     {
-                        Vi[readySender - 1] += 1;
+                        if (readySender != myID)
+                        {
+                            Vi[readySender - 1] += 1;
+                        }
+                        ReadyBoxAppend(readyMsg);
+                        buffer.Remove(readyMsg);
                     }
-                    ReadyBoxAppend(readyMsg);
-                    buffer.Remove(readyMsg);
+                    else
+                    {
+                        shouldScan = false;
+                    }
                 }
-
             }
         }
         catch (Exception ee)
